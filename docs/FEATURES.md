@@ -34,17 +34,8 @@ Dynamic Island + Lock Screen tracking of a chosen trip, backed by the same live 
 **Notifications for a tracked trip**
 Local/push notification ahead of departure ("Leave now to catch the 5:12"), and delay alerts once live status exists. The Settings toggle for this exists already; nothing triggers it yet.
 
-**Favorites / recent trips**
-Save common origin-destination pairs or stations for one-tap re-planning; store in the same SQLite prefs tables as other user settings.
-
-**Bike car info**
-GTFS `trips.txt`'s `bikes_allowed` is already imported (`Trip.bikesAllowed`) but not surfaced in any view yet — no per-car position data exists in the feed, only allowed/not-allowed per trip.
-
 **Shortcuts**
 App Intents/Siri Shortcut ("When's my next train?").
-
-**Station amenities (parking, ticket machines, restrooms, Uber/Lyft deep link)**
-Not in Caltrain's 511 GTFS/GTFS+ feed at all — checked the `stopplaces` endpoint too, which returns `"unknown"` for accessibility on nearly every platform, no better than GTFS's own field. Would need a different data source; not something to fake.
 
 **Remote timetable updates (no app-store release needed for schedule changes)**
 Spec'd, not built — see `docs/REMOTE_DATA_UPDATES.md`. App would periodically pull an updated `BabyBullet.sqlite` from a GitHub Release and hot-swap the timetable tables via the migration path `CTDatabase` already uses for bundled-DB upgrades, leaving `preferences` untouched. Schema changes still require an app update; this only covers data (new season's GTFS) refreshes.
