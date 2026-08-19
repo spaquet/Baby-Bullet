@@ -69,25 +69,29 @@ actor CTDatabase {
         }
         defer { sqlite3_close(handle) }
 
-        let migration = "002_work_station"
-        guard let migrationURL = Bundle.main.url(forResource: migration, withExtension: "sql"),
-              let sql = try? String(contentsOf: migrationURL, encoding: .utf8)
-        else { throw DatabaseError.migrationFailed("Missing \(migration) migration") }
-
         sqlite3_exec(handle, "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY);", nil, nil, nil)
-        var statement: OpaquePointer?
-        defer { sqlite3_finalize(statement) }
-        sqlite3_prepare_v2(handle, "SELECT 1 FROM schema_migrations WHERE name = ?;", -1, &statement, nil)
-        sqlite3_bind_text(statement, 1, migration, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
-        guard sqlite3_step(statement) != SQLITE_ROW else { return }
 
-        var error: UnsafeMutablePointer<CChar>?
-        guard sqlite3_exec(handle, sql, nil, nil, &error) == SQLITE_OK else {
-            let message = error.map { String(cString: $0) } ?? "Unknown migration error"
-            sqlite3_free(error)
-            throw DatabaseError.migrationFailed(message)
+        let migrations = ["002_work_station", "003_tracked_trip"]
+        for migration in migrations {
+            guard let migrationURL = Bundle.main.url(forResource: migration, withExtension: "sql"),
+                  let sql = try? String(contentsOf: migrationURL, encoding: .utf8)
+            else { throw DatabaseError.migrationFailed("Missing \(migration) migration") }
+
+            var statement: OpaquePointer?
+            sqlite3_prepare_v2(handle, "SELECT 1 FROM schema_migrations WHERE name = ?;", -1, &statement, nil)
+            sqlite3_bind_text(statement, 1, migration, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+            let alreadyApplied = sqlite3_step(statement) == SQLITE_ROW
+            sqlite3_finalize(statement)
+            guard !alreadyApplied else { continue }
+
+            var error: UnsafeMutablePointer<CChar>?
+            guard sqlite3_exec(handle, sql, nil, nil, &error) == SQLITE_OK else {
+                let message = error.map { String(cString: $0) } ?? "Unknown migration error"
+                sqlite3_free(error)
+                throw DatabaseError.migrationFailed(message)
+            }
+            sqlite3_exec(handle, "INSERT INTO schema_migrations (name) VALUES ('\(migration)');", nil, nil, nil)
         }
-        sqlite3_exec(handle, "INSERT INTO schema_migrations (name) VALUES ('\(migration)');", nil, nil, nil)
     }
 
     /// Replaces the timetable tables in `destURL` with the ones from
@@ -279,6 +283,58 @@ actor CTDatabase {
 
     func setOnboardingComplete(_ complete: Bool) throws {
         try execute("UPDATE preferences SET onboarding_complete = ? WHERE id = 1;") { sqlite3_bind_int($0, 1, complete ? 1 : 0) }
+    }
+
+    // MARK: - Tracked trip
+
+    func trackedTrip() throws -> TrackedTrip? {
+        let rows: [TrackedTrip] = try query(
+            """
+            SELECT trip_id, train_number, service_date, origin_stop_id, origin_name, dest_stop_id, dest_name, state, created_at
+            FROM tracked_trip WHERE id = 1;
+            """
+        ) { statement in
+            TrackedTrip(
+                tripID: self.columnText(statement, 0),
+                trainNumber: self.columnText(statement, 1),
+                serviceDate: self.columnText(statement, 2),
+                originStopID: self.columnText(statement, 3),
+                originName: self.columnText(statement, 4),
+                destStopID: self.columnText(statement, 5),
+                destName: self.columnText(statement, 6),
+                state: TrackedTrip.State(rawValue: self.columnText(statement, 7)) ?? .ended,
+                createdAt: ISO8601DateFormatter().date(from: self.columnText(statement, 8)) ?? .now
+            )
+        }
+        return rows.first
+    }
+
+    func setTrackedTrip(_ trip: TrackedTrip) throws {
+        try execute(
+            """
+            INSERT OR REPLACE INTO tracked_trip
+                (id, trip_id, train_number, service_date, origin_stop_id, origin_name, dest_stop_id, dest_name, state, created_at)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+        ) { statement in
+            self.bindText(statement, 1, trip.tripID)
+            self.bindText(statement, 2, trip.trainNumber)
+            self.bindText(statement, 3, trip.serviceDate)
+            self.bindText(statement, 4, trip.originStopID)
+            self.bindText(statement, 5, trip.originName)
+            self.bindText(statement, 6, trip.destStopID)
+            self.bindText(statement, 7, trip.destName)
+            self.bindText(statement, 8, trip.state.rawValue)
+            self.bindText(statement, 9, ISO8601DateFormatter().string(from: trip.createdAt))
+        }
+    }
+
+    func setTrackedTripState(_ state: TrackedTrip.State) throws {
+        try execute("UPDATE tracked_trip SET state = ? WHERE id = 1;") { self.bindText($0, 1, state.rawValue) }
+    }
+
+    func clearTrackedTrip() throws {
+        try execute("DELETE FROM tracked_trip WHERE id = 1;")
     }
 
     // MARK: - Service calendar

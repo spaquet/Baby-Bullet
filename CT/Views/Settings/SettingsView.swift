@@ -50,6 +50,7 @@ struct SettingsView: View {
                     )) {
                         Label("Location Services", systemImage: "location")
                     }
+                    .tint(.accentColor)
                 }
 
                 Section("Preferences") {
@@ -59,13 +60,14 @@ struct SettingsView: View {
                     )) {
                         Label("Notifications", systemImage: "bell")
                     }
+                    .tint(.accentColor)
                 }
 
                 Section("About") {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
+                        Text(appVersionString)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -82,5 +84,11 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var appVersionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
     }
 }

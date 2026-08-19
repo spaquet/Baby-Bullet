@@ -198,36 +198,7 @@ struct HomeView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                        let isPast = result.departureTime.minutesFromNow(currentServiceTime()) < 0
-                        Button {
-                            openResult = result
-                        } label: {
-                            HStack(spacing: 12) {
-                                TrainBadge(trainNumber: result.trainNumber, trainType: result.trainType)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("\(result.departureTime.displayString) – \(result.arrivalTime.displayString)")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(.primary)
-                                    Text("\(result.stops.count) stops")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Spacer()
-                                Text(result.durationLabel)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.vertical, 13)
-                            .padding(.horizontal, 16)
-                            .contentShape(Rectangle())
-                            .opacity(isPast ? 0.5 : 1)
-                            .background(isPast ? Color(.tertiarySystemGroupedBackground) : Color.clear)
-                        }
-                        .buttonStyle(.plain)
-                        .id(result.id)
+                        resultRow(result)
                         if index < results.count - 1 {
                             Divider().padding(.leading, 16)
                         }
@@ -237,6 +208,59 @@ struct HomeView: View {
                 .padding(.horizontal, 16)
             }
         }
+    }
+
+    private func resultRow(_ result: TripResult) -> some View {
+        let isPast = result.departureTime.minutesFromNow(currentServiceTime()) < 0
+        let isTracked = appModel.trackedTrip?.tripID == result.tripID
+        let rowBackground: Color = isTracked
+            ? Color.accentColor.opacity(0.08)
+            : (isPast ? Color(.tertiarySystemGroupedBackground) : Color.clear)
+
+        return HStack(spacing: 12) {
+            TrainBadge(trainNumber: result.trainNumber, trainType: result.trainType)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(result.departureTime.displayString) – \(result.arrivalTime.displayString)")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.primary)
+                Text("\(result.stops.count) stops")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Text(result.durationLabel)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+            trackButton(result: result, isTracked: isTracked)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 13)
+        .padding(.horizontal, 16)
+        .contentShape(Rectangle())
+        .opacity(isPast && !isTracked ? 0.5 : 1)
+        .background(rowBackground)
+        .overlay(alignment: .center) {
+            if isTracked {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor, lineWidth: 1.5).padding(2)
+            }
+        }
+        .onTapGesture { openResult = result }
+        .id(result.id)
+    }
+
+    private func trackButton(result: TripResult, isTracked: Bool) -> some View {
+        Button {
+            if isTracked { appModel.untrack() } else { appModel.track(result) }
+        } label: {
+            Image(systemName: isTracked ? "bell.fill" : "bell")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isTracked ? Color.accentColor : Color(.tertiaryLabel))
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isTracked ? "Untrack this trip" : "Track this trip")
     }
 
     private func swap(_ a: inout String?, _ b: inout String?) {

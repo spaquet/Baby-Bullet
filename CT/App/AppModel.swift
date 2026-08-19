@@ -21,10 +21,18 @@ final class AppModel {
     private(set) var homeStationID: String?
     private(set) var workStationID: String?
     private(set) var locationEnabled = false
-    private(set) var notificationsEnabled = true
+    private(set) var notificationsEnabled = false
+    private(set) var trackedTrip: TrackedTrip?
 
     let db = CTDatabase.shared
     let locationService = LocationService()
+    let realtimeService: RealtimeService
+    let trackedTripCoordinator: TrackedTripCoordinator
+
+    init(realtimeService: RealtimeService) {
+        self.realtimeService = realtimeService
+        self.trackedTripCoordinator = TrackedTripCoordinator()
+    }
 
     var homeStation: Station? {
         stations.first { $0.id == homeStationID }
@@ -46,6 +54,7 @@ final class AppModel {
             stage = prefs.onboardingComplete ? .main : .welcome
             if locationEnabled { locationService.requestAuthorization() }
             await updateWidgetSnapshot()
+            await loadTrackedTrip()
         } catch {
             // Bundled DB should always be present and valid; surface loudly in dev.
             assertionFailure("Failed to bootstrap database: \(error)")
@@ -98,8 +107,58 @@ final class AppModel {
     }
 
     func setNotificationsEnabled(_ enabled: Bool) {
-        notificationsEnabled = enabled
-        Task { try? await db.setNotificationsEnabled(enabled) }
+        Task {
+            let granted = enabled ? await TripNotificationScheduler.shared.requestAuthorization() : true
+            notificationsEnabled = enabled && granted
+            try? await db.setNotificationsEnabled(notificationsEnabled)
+        }
+    }
+
+    // MARK: - Tracked trip
+
+    private func loadTrackedTrip() async {
+        guard let trip = try? await db.trackedTrip() else { return }
+        guard trip.serviceDate == serviceDateString() else {
+            try? await db.clearTrackedTrip()
+            return
+        }
+        trackedTrip = trip
+        trackedTripCoordinator.resume(appModel: self, with: trip)
+    }
+
+    func track(_ result: TripResult) {
+        guard let origin = result.stops.first, let dest = result.stops.last else { return }
+        let trip = TrackedTrip(
+            tripID: result.tripID,
+            trainNumber: result.trainNumber,
+            serviceDate: serviceDateString(),
+            originStopID: origin.stopID,
+            originName: origin.stationName,
+            destStopID: dest.stopID,
+            destName: dest.stationName,
+            state: .upcoming,
+            createdAt: .now
+        )
+        trackedTrip = trip
+        Task { try? await db.setTrackedTrip(trip) }
+        trackedTripCoordinator.start(appModel: self, with: trip, departureTime: result.departureTime, arrivalTime: result.arrivalTime)
+    }
+
+    func setTrackedTripState(_ state: TrackedTrip.State) {
+        trackedTrip?.state = state
+    }
+
+    func untrack() {
+        trackedTrip = nil
+        Task { try? await db.clearTrackedTrip() }
+        trackedTripCoordinator.stop()
+    }
+
+    /// Called on scene-phase foreground re-entry — the coordinator's own
+    /// state machine only advances while running, so this re-derives state
+    /// after any time spent backgrounded.
+    func reconcileTrackedTrip() {
+        trackedTripCoordinator.reconcile()
     }
 
     /// The station to feature on Home: nearest known station if location is
@@ -161,9 +220,10 @@ final class AppModel {
         return ServiceTime(secondsSinceMidnight: (components.hour ?? 0) * 3_600 + (components.minute ?? 0) * 60)
     }
 
-    private func serviceDateString() -> String {
+    func serviceDateString() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd"
+        formatter.timeZone = TimeZone(identifier: "America/Los_Angeles")
         return formatter.string(from: .now)
     }
 }

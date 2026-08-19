@@ -7,6 +7,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -20,5 +21,8 @@ struct RootView: View {
             }
         }
         .task { await appModel.bootstrap() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active { appModel.reconcileTrackedTrip() }
+        }
     }
 }
