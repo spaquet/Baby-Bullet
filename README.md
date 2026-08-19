@@ -38,7 +38,16 @@ Run scripts from `scripts/` on demand (not part of the app build or CI) to pull 
 
 All default `--operator-id` to `CT` (Caltrain). See each script's docstring for full usage.
 
-Downloaded data feeds the app's local SQLite store — see `CLAUDE.md` for architecture details.
+## Building the bundled database
+
+The app ships with a prebuilt SQLite database (`CT/Resources/BabyBullet.sqlite`) rather than
+fetching 511 data at runtime. To regenerate it after a schedule change:
+
+```
+python gtfs_feed_download.py
+mkdir -p data/gtfs_extract && (cd data/gtfs_extract && unzip -o ../gtfs_CT.zip)
+python build_db.py
+```
 
 ## Development
 

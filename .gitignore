@@ -52,6 +52,8 @@ fastlane/test_output
 *.sqlite
 *.sqlite3
 *.db
+# ...except the bundled timetable DB the import script produces for the app to ship
+!CT/Resources/BabyBullet.sqlite
 
 # Python (511 import tooling)
 __pycache__/

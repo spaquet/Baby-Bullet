@@ -37,6 +37,12 @@ Full feature list: `docs/FEATURES.md`.
 - One type per file, file name == type name
 - UI supports light and dark mode — use system colors/semantic colors (`Color(.systemBackground)`, `.primary`, asset catalog color sets with both appearances), no hardcoded hex colors that break in one theme
 
+## Design source
+UI design lives in Claude Design, not in this repo. To pull it in:
+- Use the `claude_design` MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`) to import: https://claude.ai/design/p/c0fdaf97-3c0d-4b9a-8870-47ee131ff752?file=Baby+Bullet.dc.html
+- Focus file: `Baby Bullet.dc.html` (whole project is readable). It imports `ios-frame.jsx` and `support.js` — read those too.
+- Implement: `Baby Bullet.dc.html`.
+
 ## Commands
 - Build: `xcodebuild -project CT.xcodeproj -scheme CT build`
 - Test: `xcodebuild -project CT.xcodeproj -scheme CT test`
