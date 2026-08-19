@@ -11,6 +11,13 @@ private enum PickerTarget: Identifiable, Equatable {
     var id: Self { self }
 }
 
+private struct StationDetailTarget: Identifiable {
+    let station: Station
+    let isRideDestination: Bool
+
+    var id: String { station.id }
+}
+
 private struct SearchKey: Equatable {
     let originID: String?
     let destinationID: String?
@@ -32,6 +39,7 @@ struct HomeView: View {
     @State private var results: [TripResult] = []
     @State private var pickerTarget: PickerTarget?
     @State private var openResult: TripResult?
+    @State private var openStation: StationDetailTarget?
 
     private var originStation: Station? { appModel.stations.first { $0.id == originID } }
     private var destinationStation: Station? { appModel.stations.first { $0.id == destinationID } }
@@ -101,6 +109,9 @@ struct HomeView: View {
                 .sheet(item: $openResult) { result in
                     StopsSheet(tripID: result.tripID, trainNumber: result.trainNumber, trainType: result.trainType, preloadedStops: result.stops)
                 }
+                .sheet(item: $openStation) { target in
+                    StationDetailView(station: target.station, isRideDestination: target.isRideDestination)
+                }
                 .task { await prepareDefaults() }
                 .task(id: dayType) { await updateInactiveStations() }
                 .task(id: SearchKey(originID: originID, destinationID: destinationID, dayType: dayType)) {
@@ -113,10 +124,7 @@ struct HomeView: View {
 
     private var odCard: some View {
         VStack(spacing: 2) {
-            Button { pickerTarget = .origin } label: {
-                stationRow(label: "FROM", name: originStation?.name ?? "Choose a station", dotColor: Color.accentColor)
-            }
-            .buttonStyle(.plain)
+            stationRow(label: "FROM", station: originStation, dotColor: Color.accentColor, target: .origin)
 
             Button {
                 swap(&originID, &destinationID)
@@ -130,28 +138,38 @@ struct HomeView: View {
             .buttonStyle(.plain)
             .padding(.vertical, 2)
 
-            Button { pickerTarget = .destination } label: {
-                stationRow(label: "TO", name: destinationStation?.name ?? "Choose a station", dotColor: Color("BadgeExpress"))
-            }
-            .buttonStyle(.plain)
+            stationRow(label: "TO", station: destinationStation, dotColor: Color("BadgeExpress"), target: .destination)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
     }
 
-    private func stationRow(label: String, name: String, dotColor: Color) -> some View {
+    private func stationRow(label: String, station: Station?, dotColor: Color, target: PickerTarget) -> some View {
         HStack(spacing: 12) {
-            Circle().fill(dotColor.opacity(0.15)).frame(width: 22, height: 22)
-                .overlay(Circle().fill(dotColor).frame(width: 7, height: 7))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary)
-                Text(name).font(.system(size: 17, weight: .medium)).foregroundStyle(.primary)
+            Button { pickerTarget = target } label: {
+                HStack(spacing: 12) {
+                    Circle().fill(dotColor.opacity(0.15)).frame(width: 22, height: 22)
+                        .overlay(Circle().fill(dotColor).frame(width: 7, height: 7))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary)
+                        Text(station?.name ?? "Choose a station").font(.system(size: 17, weight: .medium)).foregroundStyle(.primary)
+                    }
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             Spacer()
+            if let station {
+                Button { openStation = StationDetailTarget(station: station, isRideDestination: target == .origin) } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Information about \(station.name)")
+            }
         }
         .padding(.vertical, 12)
-        .contentShape(Rectangle())
     }
 
     private var dayTypePicker: some View {
