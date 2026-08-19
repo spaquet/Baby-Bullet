@@ -12,6 +12,14 @@ import SQLite3
 actor CTDatabase {
     static let shared = CTDatabase()
 
+    /// Schema `PRAGMA user_version` this build's query layer expects. Bump
+    /// only alongside a matching bump in `scripts/build_db.py`'s `SCHEMA`.
+    /// Remote data updates (see docs/REMOTE_DATA_UPDATES.md) refuse to apply
+    /// against a manifest whose `schema_version` doesn't match this.
+    static let expectedSchemaVersion = 1
+
+    private static let timetableTables = ["stations", "platforms", "routes", "directions", "calendars", "calendar_dates", "trips", "stop_times"]
+
     private var db: OpaquePointer?
 
     private init() {}
@@ -71,7 +79,7 @@ actor CTDatabase {
 
         sqlite3_exec(handle, "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY);", nil, nil, nil)
 
-        let migrations = ["002_work_station", "003_tracked_trip"]
+        let migrations = ["002_work_station", "003_tracked_trip", "004_data_version"]
         for migration in migrations {
             guard let migrationURL = Bundle.main.url(forResource: migration, withExtension: "sql"),
                   let sql = try? String(contentsOf: migrationURL, encoding: .utf8)
@@ -103,7 +111,6 @@ actor CTDatabase {
         }
         defer { sqlite3_close(handle) }
 
-        let timetableTables = ["stations", "platforms", "routes", "directions", "calendars", "calendar_dates", "trips", "stop_times"]
         var errMsg: UnsafeMutablePointer<CChar>?
         let newVersion = try userVersion(at: bundledURL)
 
@@ -122,6 +129,51 @@ actor CTDatabase {
             sqlite3_free(errMsg)
             throw DatabaseError.migrationFailed(message)
         }
+    }
+
+    // MARK: - Remote data updates
+
+    /// Replaces the timetable tables with the ones from a downloaded,
+    /// verified DB file (see docs/REMOTE_DATA_UPDATES.md), and records
+    /// `dataVersion` + a sync timestamp in `preferences`. Same mechanism as
+    /// the bundled-DB migration path, just with `RemoteDataUpdater` as the
+    /// caller instead of `open()`, and an explicit data version from the
+    /// release manifest rather than one derived from the source file.
+    func applyRemoteTimetable(from url: URL, dataVersion: Int) throws {
+        guard let db else { throw DatabaseError.notOpen }
+        let newSchemaVersion = try Self.userVersion(at: url)
+
+        var errMsg: UnsafeMutablePointer<CChar>?
+        sqlite3_exec(db, "ATTACH DATABASE '\(url.path)' AS src;", nil, nil, &errMsg)
+        sqlite3_exec(db, "BEGIN TRANSACTION;", nil, nil, &errMsg)
+        for table in Self.timetableTables {
+            sqlite3_exec(db, "DELETE FROM \(table);", nil, nil, &errMsg)
+            sqlite3_exec(db, "INSERT INTO \(table) SELECT * FROM src.\(table);", nil, nil, &errMsg)
+        }
+        sqlite3_exec(db, "PRAGMA user_version = \(newSchemaVersion);", nil, nil, &errMsg)
+        try execute("UPDATE preferences SET data_version = ?, data_synced_at = ? WHERE id = 1;") { statement in
+            sqlite3_bind_int(statement, 1, Int32(dataVersion))
+            self.bindText(statement, 2, ISO8601DateFormatter().string(from: .now))
+        }
+        sqlite3_exec(db, "COMMIT;", nil, nil, &errMsg)
+        sqlite3_exec(db, "DETACH DATABASE src;", nil, nil, &errMsg)
+
+        if let errMsg {
+            let message = String(cString: errMsg)
+            sqlite3_free(errMsg)
+            throw DatabaseError.migrationFailed(message)
+        }
+    }
+
+    func dataVersion() throws -> Int {
+        let rows: [Int] = try query("SELECT data_version FROM preferences WHERE id = 1;") { Int(sqlite3_column_int($0, 0)) }
+        return rows.first ?? 1
+    }
+
+    func dataSyncedAt() throws -> Date? {
+        let rows: [String?] = try query("SELECT data_synced_at FROM preferences WHERE id = 1;") { self.columnOptionalText($0, 0) }
+        guard let value = rows.first ?? nil else { return nil }
+        return ISO8601DateFormatter().date(from: value)
     }
 
     // MARK: - Low-level helpers

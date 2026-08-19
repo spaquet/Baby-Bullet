@@ -23,6 +23,8 @@ final class AppModel {
     private(set) var locationEnabled = false
     private(set) var notificationsEnabled = false
     private(set) var trackedTrip: TrackedTrip?
+    private(set) var dataVersion: Int = 1
+    private(set) var dataSyncedAt: Date?
 
     let db = CTDatabase.shared
     let locationService = LocationService()
@@ -55,6 +57,11 @@ final class AppModel {
             if locationEnabled { locationService.requestAuthorization() }
             await updateWidgetSnapshot()
             await loadTrackedTrip()
+            await refreshDataSyncInfo()
+            Task {
+                await RemoteDataUpdater.shared.checkForUpdateIfDue()
+                await refreshDataSyncInfo()
+            }
         } catch {
             // Bundled DB should always be present and valid; surface loudly in dev.
             assertionFailure("Failed to bootstrap database: \(error)")
@@ -218,6 +225,11 @@ final class AppModel {
     private func currentServiceTime() -> ServiceTime {
         let components = Calendar.current.dateComponents([.hour, .minute], from: .now)
         return ServiceTime(secondsSinceMidnight: (components.hour ?? 0) * 3_600 + (components.minute ?? 0) * 60)
+    }
+
+    private func refreshDataSyncInfo() async {
+        dataVersion = (try? await db.dataVersion()) ?? dataVersion
+        dataSyncedAt = try? await db.dataSyncedAt()
     }
 
     func serviceDateString() -> String {
