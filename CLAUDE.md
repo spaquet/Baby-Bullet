@@ -13,7 +13,7 @@ Riders plan Caltrain trips: timetables, station info, service status. No booking
 
 ## 511 import tooling (`scripts/` or `tools/`, Python)
 - Python script(s), run manually/on-demand — not part of app build or CI
-- Token loaded from `.env` (`511_API_TOKEN=...` or similar), via `python-dotenv` — `.env` gitignored, never committed; commit a `.env.example` with blank value
+- Token loaded from `.env` (`FIVE_ELEVEN_API_TOKEN=...`), via `python-dotenv` — `.env` gitignored, never committed; `.env.example` (blank value) committed instead
 - Script hits 511 REST endpoints with `format=json`, parses JSON, writes into the app's SQLite DB (see Persistence) — no XML parsing needed
 - Keep script deps minimal: `requests` (or stdlib `urllib`) + `python-dotenv`; a `requirements.txt` in the script's folder
 
