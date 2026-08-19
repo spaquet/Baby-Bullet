@@ -137,14 +137,42 @@ actor CTDatabase {
 
     // MARK: - Stations & platforms
 
+    /// North → south, matching the line's physical trip order (confirmed
+    /// against real stop_sequence data — latitude is monotonic along this
+    /// corridor, including branch/event stops like Stanford and Broadway).
     func stations() throws -> [Station] {
-        try query("SELECT id, name, lat, lon, zone_id FROM stations ORDER BY name;") { statement in
+        try query("SELECT id, name, lat, lon, zone_id FROM stations ORDER BY lat DESC;") { statement in
             Station(
                 id: self.columnText(statement, 0), name: self.columnText(statement, 1),
                 latitude: sqlite3_column_double(statement, 2), longitude: sqlite3_column_double(statement, 3),
                 zoneID: self.columnOptionalText(statement, 4)
             )
         }
+    }
+
+    /// Station IDs with at least one stop under any of `serviceIDs` — i.e.
+    /// which stations actually run on this schedule (South County stations
+    /// like Gilroy are weekday-only; Broadway/Stanford are neither).
+    func servedStationIDs(serviceIDs: Set<String>) throws -> Set<String> {
+        guard !serviceIDs.isEmpty else { return [] }
+        let placeholders = serviceIDs.map { _ in "?" }.joined(separator: ",")
+        let serviceIDArray = Array(serviceIDs)
+        let sql = """
+            SELECT DISTINCT p.station_id
+            FROM stop_times st
+            JOIN trips t ON t.id = st.trip_id
+            JOIN platforms p ON p.id = st.stop_id
+            WHERE t.service_id IN (\(placeholders));
+            """
+        let rows: [String] = try query(
+            sql,
+            bind: { statement in
+                for (offset, serviceID) in serviceIDArray.enumerated() {
+                    self.bindText(statement, Int32(1 + offset), serviceID)
+                }
+            }
+        ) { self.columnText($0, 0) }
+        return Set(rows)
     }
 
     func platforms(stationID: String) throws -> [Platform] {
@@ -277,7 +305,7 @@ actor CTDatabase {
 
     // MARK: - Departures & trip search
 
-    func departures(fromStationID stationID: String, serviceIDs: Set<String>, after time: ServiceTime, limit: Int) throws -> [Departure] {
+    func departures(fromStationID stationID: String, serviceIDs: Set<String>, after time: ServiceTime) throws -> [Departure] {
         guard !serviceIDs.isEmpty else { return [] }
         let routes = try routesByID()
         let placeholders = serviceIDs.map { _ in "?" }.joined(separator: ",")
@@ -315,8 +343,6 @@ actor CTDatabase {
         return departures
             .filter { $0.departureTime >= time }
             .sorted { $0.departureTime < $1.departureTime }
-            .prefix(limit)
-            .map { $0 }
     }
 
     func tripResults(originStationID: String, destinationStationID: String, serviceIDs: Set<String>) throws -> [TripResult] {

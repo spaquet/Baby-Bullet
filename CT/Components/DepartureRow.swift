@@ -10,7 +10,9 @@ struct DepartureRow: View {
     let trainType: TrainType
     let time: ServiceTime
     let destination: String
-    let minutesUntil: Int
+    /// Minutes from now to this departure; negative once it's already left.
+    let minutesFromNow: Int
+    var isPast: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -18,13 +20,21 @@ struct DepartureRow: View {
             Text(destinationLine)
                 .font(.system(size: 16, weight: .medium))
             Spacer()
-            Text(ServiceTime.minutesLabel(forMinutes: minutesUntil))
+            Text(statusLabel)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 13)
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
+        .opacity(isPast ? 0.5 : 1)
+        .background(isPast ? Color(.tertiarySystemGroupedBackground) : Color.clear)
+    }
+
+    private var statusLabel: String {
+        if isPast { return "Departed" }
+        if minutesFromNow <= 0 { return "Now" }
+        return ServiceTime.minutesLabel(forMinutes: minutesFromNow)
     }
 
     private var destinationLine: AttributedString {

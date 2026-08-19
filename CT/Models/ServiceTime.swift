@@ -35,8 +35,9 @@ nonisolated struct ServiceTime: Sendable, Comparable, Hashable {
         return String(format: "%d:%02d", h, m)
     }
 
-    func minutesUntil(_ reference: ServiceTime) -> Int {
-        max(0, (secondsSinceMidnight - reference.secondsSinceMidnight) / 60)
+    /// Signed minutes from `reference` to this time — negative once it's past.
+    func minutesFromNow(_ reference: ServiceTime) -> Int {
+        (secondsSinceMidnight - reference.secondsSinceMidnight) / 60
     }
 
     static func minutesLabel(forMinutes mins: Int) -> String {

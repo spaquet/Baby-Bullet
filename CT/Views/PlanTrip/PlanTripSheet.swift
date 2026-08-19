@@ -11,6 +11,12 @@ private enum PickerTarget: Identifiable, Equatable {
     var id: Self { self }
 }
 
+private struct SearchKey: Equatable {
+    let originID: String?
+    let destinationID: String?
+    let dayType: DayType
+}
+
 struct PlanTripSheet: View {
     @Environment(AppModel.self) private var appModel
     @Environment(\.dismiss) private var dismiss
@@ -24,6 +30,7 @@ struct PlanTripSheet: View {
     @State private var results: [TripResult] = []
     @State private var pickerTarget: PickerTarget?
     @State private var openResult: TripResult?
+    @State private var inactiveStationIDs: Set<String> = []
 
     private var originStation: Station? { appModel.stations.first { $0.id == originID } }
     private var destinationStation: Station? { appModel.stations.first { $0.id == destinationID } }
@@ -40,21 +47,20 @@ struct PlanTripSheet: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 18)
 
-                    Button {
-                        Task { await search() }
-                    } label: {
-                        Text("Find Trains")
-                            .font(.system(size: 16, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                    if !inactiveStationIDs.isEmpty {
+                        Text("\(inactiveStationIDs.count) station\(inactiveStationIDs.count == 1 ? "" : "s") don't run on the \(dayType.label.lowercased()) schedule — shown dimmed when picking a station.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 32)
+                            .padding(.top, 8)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle(radius: 14))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 18)
-                    .disabled(originID == nil || destinationID == nil || originID == destinationID)
 
-                    if searched {
+                    if originID != nil, destinationID != nil, originID == destinationID {
+                        Text("Choose two different stations.")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 20)
+                    } else if searched {
                         resultsList
                             .padding(.top, 20)
                     }
@@ -73,15 +79,19 @@ struct PlanTripSheet: View {
                 StationPickerSheet(
                     title: target == .origin ? "Departing From" : "Arriving At",
                     stations: appModel.stations,
-                    selectedID: target == .origin ? originID : destinationID
-                ) { station in
-                    if target == .origin { originID = station.id } else { destinationID = station.id }
-                }
+                    selectedID: target == .origin ? originID : destinationID,
+                    onPick: { station in
+                        if target == .origin { originID = station.id } else { destinationID = station.id }
+                    },
+                    inactiveStationIDs: inactiveStationIDs
+                )
             }
             .sheet(item: $openResult) { result in
                 StopsSheet(tripID: result.tripID, trainNumber: result.trainNumber, trainType: result.trainType, preloadedStops: result.stops)
             }
             .task { await prepareDefaults() }
+            .task(id: dayType) { await updateInactiveStations() }
+            .task(id: SearchKey(originID: originID, destinationID: destinationID, dayType: dayType)) { await search() }
         }
     }
 
@@ -217,14 +227,26 @@ struct PlanTripSheet: View {
         }
     }
 
-    private func search() async {
-        guard let originID, let destinationID else { return }
-        let serviceIDs: Set<String>
+    private func serviceIDs(for dayType: DayType) async -> Set<String> {
         switch dayType {
-        case .weekday: serviceIDs = (try? await appModel.db.weekdayServiceIDs()) ?? []
-        case .weekend: serviceIDs = (try? await appModel.db.weekendServiceIDs()) ?? []
-        case .holiday: serviceIDs = holidayServiceIDs
+        case .weekday: return (try? await appModel.db.weekdayServiceIDs()) ?? []
+        case .weekend: return (try? await appModel.db.weekendServiceIDs()) ?? []
+        case .holiday: return holidayServiceIDs
         }
+    }
+
+    private func updateInactiveStations() async {
+        let served = (try? await appModel.db.servedStationIDs(serviceIDs: await serviceIDs(for: dayType))) ?? []
+        inactiveStationIDs = Set(appModel.stations.map(\.id)).subtracting(served)
+    }
+
+    private func search() async {
+        guard let originID, let destinationID, originID != destinationID else {
+            searched = false
+            results = []
+            return
+        }
+        let serviceIDs = await serviceIDs(for: dayType)
         results = (try? await appModel.db.tripResults(originStationID: originID, destinationStationID: destinationID, serviceIDs: serviceIDs)) ?? []
         searched = true
     }

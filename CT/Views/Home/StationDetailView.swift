@@ -6,6 +6,10 @@
 import SwiftUI
 import MapKit
 
+/// How far into the past to still show a departure — a train can run late,
+/// so don't drop it from the list the instant its scheduled time passes.
+private let lateGraceMinutes = 40
+
 struct StationDetailView: View {
     let station: Station
     @Environment(AppModel.self) private var appModel
@@ -14,80 +18,86 @@ struct StationDetailView: View {
     @State private var openDeparture: Departure?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if let accessibilityNote {
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "figure.roll.runningpace")
-                            .foregroundStyle(Color("Warning"))
-                            .padding(.top, 1)
-                        Text(accessibilityNote)
-                            .font(.system(size: 14.5))
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color("WarningBackground"), in: RoundedRectangle(cornerRadius: 16))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-                }
-
-                HStack {
-                    Text("NEXT DEPARTURES")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal, 32)
-                .padding(.bottom, 8)
-
+        ScrollViewReader { proxy in
+            ScrollView {
                 VStack(spacing: 0) {
-                    if departures.isEmpty {
-                        Text("No more scheduled departures today.")
-                            .font(.system(size: 15))
+                    if let accessibilityNote {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "figure.roll.runningpace")
+                                .foregroundStyle(Color("Warning"))
+                                .padding(.top, 1)
+                            Text(accessibilityNote)
+                                .font(.system(size: 14.5))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color("WarningBackground"), in: RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                    }
+
+                    HStack {
+                        Text("TODAY'S DEPARTURES")
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.secondary)
-                            .padding(16)
-                    } else {
-                        ForEach(Array(departures.enumerated()), id: \.element.id) { index, departure in
-                            Button {
-                                openDeparture = departure
-                            } label: {
-                                DepartureRow(
-                                    trainNumber: departure.trainNumber, trainType: departure.trainType,
-                                    time: departure.departureTime, destination: departure.destination,
-                                    minutesUntil: departure.departureTime.minutesUntil(currentServiceTime())
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            if index < departures.count - 1 {
-                                Divider().padding(.leading, 16)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 8)
+
+                    VStack(spacing: 0) {
+                        if departures.isEmpty {
+                            Text("No more scheduled departures today.")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.secondary)
+                                .padding(16)
+                        } else {
+                            ForEach(Array(departures.enumerated()), id: \.element.id) { index, departure in
+                                let minutes = departure.departureTime.minutesFromNow(currentServiceTime())
+                                Button {
+                                    openDeparture = departure
+                                } label: {
+                                    DepartureRow(
+                                        trainNumber: departure.trainNumber, trainType: departure.trainType,
+                                        time: departure.departureTime, destination: departure.destination,
+                                        minutesFromNow: minutes, isPast: minutes < 0
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .id(departure.id)
+                                if index < departures.count - 1 {
+                                    Divider().padding(.leading, 16)
+                                }
                             }
                         }
                     }
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .padding(.horizontal, 16)
                 }
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .padding(.top, 8)
-            .padding(.bottom, 24)
-        }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle(station.name)
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    openInMaps()
-                } label: {
-                    Image(systemName: "map")
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle(station.name)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        openInMaps()
+                    } label: {
+                        Image(systemName: "map")
+                    }
                 }
             }
-        }
-        .sheet(item: $openDeparture) { departure in
-            StopsSheet(tripID: departure.tripID, trainNumber: departure.trainNumber, trainType: departure.trainType)
-        }
-        .task {
-            await load()
+            .sheet(item: $openDeparture) { departure in
+                StopsSheet(tripID: departure.tripID, trainNumber: departure.trainNumber, trainType: departure.trainType)
+            }
+            .task {
+                await load()
+                centerOnNow(proxy)
+            }
         }
     }
 
@@ -109,11 +119,25 @@ struct StationDetailView: View {
         do {
             platforms = try await appModel.db.platforms(stationID: station.id)
             let active = try await appModel.db.activeServices(on: Date())
+            let now = currentServiceTime()
+            let windowStart = ServiceTime(secondsSinceMidnight: max(0, now.secondsSinceMidnight - lateGraceMinutes * 60))
             departures = try await appModel.db.departures(
-                fromStationID: station.id, serviceIDs: active.serviceIDs, after: currentServiceTime(), limit: 8
+                fromStationID: station.id, serviceIDs: active.serviceIDs, after: windowStart
             )
         } catch {
             departures = []
+        }
+    }
+
+    /// Scrolls so the next upcoming (or just-departed) train sits mid-screen,
+    /// instead of opening at the top of the whole day's list.
+    private func centerOnNow(_ proxy: ScrollViewProxy) {
+        let now = currentServiceTime()
+        guard let target = departures.first(where: { $0.departureTime >= now }) ?? departures.last else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(nil) {
+                proxy.scrollTo(target.id, anchor: .center)
+            }
         }
     }
 
