@@ -70,6 +70,18 @@ struct SettingsView: View {
                         Text(appVersionString)
                             .foregroundStyle(.secondary)
                     }
+                    HStack {
+                        Text("Data Version")
+                        Spacer()
+                        Text("\(appModel.dataVersion)")
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("Data Last Synced")
+                        Spacer()
+                        Text(dataSyncedAtString)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -90,5 +102,10 @@ struct SettingsView: View {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(version) (\(build))"
+    }
+
+    private var dataSyncedAtString: String {
+        guard let dataSyncedAt = appModel.dataSyncedAt else { return "Bundled Only" }
+        return dataSyncedAt.formatted(date: .abbreviated, time: .shortened)
     }
 }

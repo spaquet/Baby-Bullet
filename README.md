@@ -49,6 +49,34 @@ mkdir -p data/gtfs_extract && (cd data/gtfs_extract && unzip -o ../gtfs_CT.zip)
 python build_db.py
 ```
 
+Rebuilding just updates the file on disk — apps already installed don't see it until you
+publish it (below) or the next App Store release re-bundles it.
+
+## Publishing a remote data update
+
+Schedule/holiday data can be pushed to installed apps without an App Store release — the
+app polls a GitHub Release once a day and swaps in the new timetable tables if it finds a
+newer one. See `docs/REMOTE_DATA_UPDATES.md` for the full design. Requires the `gh` CLI,
+authenticated against this repo.
+
+```
+python gtfs_feed_download.py
+mkdir -p data/gtfs_extract && (cd data/gtfs_extract && unzip -o ../gtfs_CT.zip)
+python publish_release.py
+```
+
+`publish_release.py` runs `build_db.py` itself, so you don't need to run it separately —
+the two commands above are enough. It then uploads `BabyBullet.sqlite` and a `latest.json`
+manifest (schema version, data version, checksum) to the rolling `latest` GitHub Release tag.
+Pass `--skip-build` to publish the file already at `CT/Resources/BabyBullet.sqlite` as-is
+instead of rebuilding it, or `--data-version N` to force a specific version number instead
+of auto-incrementing from the currently published one.
+
+This only works for **data** changes (new schedules, holidays) against the app's current
+schema — a schema change (new/changed tables or columns) still requires an app update, since
+remote updates refuse to apply if the manifest's `schema_version` doesn't match what the
+installed app expects.
+
 ## Development
 
 See `CLAUDE.md` for stack conventions, persistence design, and build/test commands.

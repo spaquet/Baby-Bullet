@@ -1,5 +1,6 @@
 import Testing
 @testable import CT
+import Foundation
 
 struct DayTypeTests {
     @Test func defaultsToTheCaliforniaWeekendSchedule() {
