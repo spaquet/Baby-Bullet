@@ -29,7 +29,7 @@ struct HomeView: View {
 
     @State private var originID: String?
     @State private var destinationID: String?
-    @State private var dayType: DayType = .weekday
+    @State private var dayType = DayType.defaultRegularSchedule()
     @State private var holidayServiceIDs: Set<String> = []
     @State private var showHolidayTab = false
     @State private var isHolidayToday = false
@@ -263,6 +263,7 @@ struct HomeView: View {
             isHolidayToday = active.isHoliday
             holidayServiceIDs = active.holidayOnlyServiceIDs
             showHolidayTab = active.isHoliday
+            if active.isHoliday { dayType = .holiday }
             if let nonHolidayID = active.serviceIDs.subtracting(active.holidayOnlyServiceIDs).first {
                 scheduleNote = try? await appModel.db.calendarDescription(for: nonHolidayID)
             }
