@@ -33,6 +33,4 @@ Riders plan Caltrain trips: timetables, station info, service status. No booking
 - Test: `xcodebuild -project CT.xcodeproj -scheme CT test`
 
 ## Non-goals (for now)
-- Ticket purchase/payment
 - Live GPS train tracking (unless 511 exposes it later)
-- Android/other platforms
