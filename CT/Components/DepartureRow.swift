@@ -10,8 +10,9 @@ struct DepartureRow: View {
     let trainType: TrainType
     let time: ServiceTime
     let destination: String
-    /// Minutes from now to this departure; negative once it's already left.
-    let minutesFromNow: Int
+    /// Riding time from this departure to `destination` (the trip's
+    /// terminus, unless the caller resolved a user-chosen destination).
+    let rideDurationMinutes: Int
     var isPast: Bool = false
 
     var body: some View {
@@ -20,7 +21,7 @@ struct DepartureRow: View {
             Text(destinationLine)
                 .font(.system(size: 16, weight: .medium))
             Spacer()
-            Text(statusLabel)
+            Text(ServiceTime.minutesLabel(forMinutes: rideDurationMinutes))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.secondary)
         }
@@ -29,12 +30,6 @@ struct DepartureRow: View {
         .contentShape(Rectangle())
         .opacity(isPast ? 0.5 : 1)
         .background(isPast ? Color(.tertiarySystemGroupedBackground) : Color.clear)
-    }
-
-    private var statusLabel: String {
-        if isPast { return "Departed" }
-        if minutesFromNow <= 0 { return "Now" }
-        return ServiceTime.minutesLabel(forMinutes: minutesFromNow)
     }
 
     private var destinationLine: AttributedString {

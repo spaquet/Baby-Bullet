@@ -98,7 +98,7 @@ struct HomeView: View {
                                         DepartureRow(
                                             trainNumber: departure.trainNumber, trainType: departure.trainType,
                                             time: departure.departureTime, destination: departure.destination,
-                                            minutesFromNow: minutes, isPast: minutes < 0
+                                            rideDurationMinutes: departure.rideDurationMinutes, isPast: minutes < 0
                                         )
                                     }
                                     .buttonStyle(.plain)

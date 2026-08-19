@@ -305,9 +305,30 @@ actor CTDatabase {
 
     // MARK: - Departures & trip search
 
+    /// Each trip's arrival time at its final stop (its terminus) — used to
+    /// show ride duration when no destination has been chosen.
+    private func tripTerminusArrivalTimes() throws -> [String: ServiceTime] {
+        let sql = """
+            SELECT st.trip_id, st.arrival_time
+            FROM stop_times st
+            JOIN (SELECT trip_id, MAX(stop_sequence) AS max_seq FROM stop_times GROUP BY trip_id) last
+              ON last.trip_id = st.trip_id AND last.max_seq = st.stop_sequence;
+            """
+        let rows: [(tripID: String, timeString: String)] = try query(sql) { statement in
+            (self.columnText(statement, 0), self.columnText(statement, 1))
+        }
+        var result: [String: ServiceTime] = [:]
+        for row in rows {
+            guard let time = ServiceTime(gtfsString: row.timeString) else { continue }
+            result[row.tripID] = time
+        }
+        return result
+    }
+
     func departures(fromStationID stationID: String, serviceIDs: Set<String>, after time: ServiceTime) throws -> [Departure] {
         guard !serviceIDs.isEmpty else { return [] }
         let routes = try routesByID()
+        let termini = try tripTerminusArrivalTimes()
         let placeholders = serviceIDs.map { _ in "?" }.joined(separator: ",")
         let sql = """
             SELECT t.id, t.route_id, t.short_name, t.headsign, st.departure_time
@@ -334,10 +355,12 @@ actor CTDatabase {
         }
 
         let departures = rows.compactMap { row -> Departure? in
-            guard let serviceTime = ServiceTime(gtfsString: row.timeString), let route = routes[row.routeID] else { return nil }
+            guard let serviceTime = ServiceTime(gtfsString: row.timeString), let route = routes[row.routeID],
+                  let terminusArrival = termini[row.tripID]
+            else { return nil }
             return Departure(
                 tripID: row.tripID, trainNumber: row.shortName ?? row.tripID, trainType: route.trainType,
-                departureTime: serviceTime, destination: row.headsign ?? ""
+                departureTime: serviceTime, destination: row.headsign ?? "", terminusArrivalTime: terminusArrival
             )
         }
         return departures
