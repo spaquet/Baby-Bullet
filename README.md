@@ -43,3 +43,9 @@ Downloaded data feeds the app's local SQLite store — see `CLAUDE.md` for archi
 ## Development
 
 See `CLAUDE.md` for stack conventions, persistence design, and build/test commands.
+
+## License
+
+See [`LICENSE.md`](LICENSE.md) — source-available, share-alike, App Store distribution
+reserved to the original developer. Covers Caltrain trademark, 511.org data terms, and
+app icon provenance too.

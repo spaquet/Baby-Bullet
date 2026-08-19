@@ -4,6 +4,7 @@ iOS app, plan Caltrain rides. Swift 6, iOS 26+, SwiftUI, strict concurrency on.
 
 ## What it does
 Riders plan Caltrain trips: timetables, station info, service status. No booking (Caltrain has no seat reservation).
+Full feature list: `docs/FEATURES.md`.
 
 ## Data sources
 - **Timetable + holidays**: 511.org Open Data API (GTFS), always `format=json` — never XML. Downloaded offline via local Python script (not in-app), using our 511 token. Bundled/synced into app, not fetched live from device.
@@ -34,6 +35,7 @@ Riders plan Caltrain trips: timetables, station info, service status. No booking
 - GTFS data → local models via a parsing/import step, not raw GTFS types in views
 - Async work via `async/await`, no completion handlers
 - One type per file, file name == type name
+- UI supports light and dark mode — use system colors/semantic colors (`Color(.systemBackground)`, `.primary`, asset catalog color sets with both appearances), no hardcoded hex colors that break in one theme
 
 ## Commands
 - Build: `xcodebuild -project CT.xcodeproj -scheme CT build`
