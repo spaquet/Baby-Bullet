@@ -36,7 +36,9 @@ struct StopsSheet: View {
                         Text(stop.stationName)
                             .foregroundStyle(.primary)
                         Spacer()
-                        DelayPill(state: liveStates[stop.id] ?? .loading)
+                        if !hasArrived {
+                            DelayPill(state: liveStates[stop.id] ?? .loading)
+                        }
                         Text(stop.time.displayString)
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -66,6 +68,12 @@ struct StopsSheet: View {
 
     private func loadLiveStatuses() async {
         guard !stops.isEmpty else { return }
+        if scheduledArrivalHasPassed(stops.last!) {
+            hasArrived = true
+            liveStates = Dictionary(uniqueKeysWithValues: stops.map { ($0.id, .unavailable) })
+            return
+        }
+
         let finalPlatform = try? await appModel.db.platform(id: stops.last!.stopID)
         let live = await realtimeService.statuses(
             tripID: tripID,
@@ -76,5 +84,14 @@ struct StopsSheet: View {
         liveStates = Dictionary(uniqueKeysWithValues: stops.map {
             ($0.id, live.states[$0.stopID].map(DelayPill.State.status) ?? .unavailable)
         })
+    }
+
+    private func scheduledArrivalHasPassed(_ finalStop: StopArrival) -> Bool {
+        let components = Calendar.current.dateComponents([.hour, .minute, .second], from: .now)
+        let now = ServiceTime(secondsSinceMidnight:
+            (components.hour ?? 0) * 3_600 + (components.minute ?? 0) * 60 + (components.second ?? 0)
+        )
+        // ponytail: scheduled fallback assumes completion; replace with retained trip updates if history is added.
+        return finalStop.time.isAtLeastFiveMinutesPast(now)
     }
 }

@@ -40,6 +40,10 @@ nonisolated struct ServiceTime: Sendable, Comparable, Hashable {
         (secondsSinceMidnight - reference.secondsSinceMidnight) / 60
     }
 
+    func isAtLeastFiveMinutesPast(_ reference: ServiceTime) -> Bool {
+        reference.secondsSinceMidnight >= secondsSinceMidnight + 5 * 60
+    }
+
     static func minutesLabel(forMinutes mins: Int) -> String {
         if mins < 60 { return "\(mins) min" }
         return "\(mins / 60)h \(mins % 60)m"
