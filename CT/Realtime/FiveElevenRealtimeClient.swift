@@ -29,7 +29,7 @@ actor FiveElevenRealtimeClient {
 
     private func get<T: Decodable>(_ path: String, extra: [String: String] = [:]) async throws -> T {
         var components = URLComponents(string: "\(Self.baseURL)/\(path)")
-        var items = [
+        var items = await [
             URLQueryItem(name: "api_key", value: Secrets.fiveElevenAPIToken),
             URLQueryItem(name: "agency", value: "CT"),
             URLQueryItem(name: "format", value: "json"),
