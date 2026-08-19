@@ -8,7 +8,9 @@ Full feature list: `docs/FEATURES.md`.
 
 ## Data sources
 - **Timetable + holidays**: 511.org Open Data API (GTFS), always `format=json` — never XML. Downloaded offline via local Python script (not in-app), using our 511 token. Bundled/synced into app, not fetched live from device.
-- **Live status/alerts**: our own backend (future feature, not yet built). Do not call 511.org directly from app for status.
+- **Live train position/delay + service alerts**: fetched directly from device via 511.org's real-time transit API (SIRI `StopMonitoring`/`VehicleMonitoring`, GTFS-Realtime `servicealerts`) — see `CT/Realtime/`. Always `agency=CT`, `format=json`. Responses arrive UTF-8 with a leading BOM; strip it before `JSONDecoder` (see `FiveElevenRealtimeClient.decode`, mirrors `scripts/five_eleven.py`'s `parse_json`). Note `VehicleMonitoring` wraps its payload in a `Siri` envelope, `StopMonitoring` does not — confirmed against live responses, don't assume a shared envelope shape.
+- **Limitation**: 511 real-time is a live snapshot only, not a history API — once a trip's service day has genuinely ended it may return no data at all. "Was this past train delayed" only works while 511 still has it; there's no local capture-over-time yet, so don't try to fake historical data when 511 returns nothing — show an honest "unavailable" state instead.
+- Runtime API token lives in `CT/App/Secrets.swift` (gitignored; `Secrets.swift.example` committed as the template) — same pattern as the import script's `.env`.
 - Base endpoint: `https://api.511.org`. Every request needs `api_key` param. Errors: 401 = bad key, 500 = server error.
 - Spec: `docs/511_SF_Bay_open_data_specification-Overview_2026.pdf`.
 
@@ -48,4 +50,4 @@ UI design lives in Claude Design, not in this repo. To pull it in:
 - Test: `xcodebuild -project CT.xcodeproj -scheme CT test`
 
 ## Non-goals (for now)
-- Live GPS train tracking (unless 511 exposes it later)
+- Historical delay tracking for trips whose service day has already ended (would need local capture-over-time, not just live polling)

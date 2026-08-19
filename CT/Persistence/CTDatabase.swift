@@ -188,6 +188,19 @@ actor CTDatabase {
         }
     }
 
+    func platform(id: String) throws -> Platform? {
+        try query(
+            "SELECT id, station_id, name, lat, lon, wheelchair_boarding FROM platforms WHERE id = ?;",
+            bind: { self.bindText($0, 1, id) }
+        ) { statement in
+            Platform(
+                id: self.columnText(statement, 0), stationID: self.columnText(statement, 1), name: self.columnText(statement, 2),
+                latitude: sqlite3_column_double(statement, 3), longitude: sqlite3_column_double(statement, 4),
+                accessibility: AccessibilityStatus(gtfsValue: Int(sqlite3_column_int(statement, 5)))
+            )
+        }.first
+    }
+
     private func routesByID() throws -> [String: Route] {
         let routes: [Route] = try query("SELECT id, short_name, long_name, color, text_color FROM routes;") { statement in
             Route(
@@ -438,7 +451,7 @@ actor CTDatabase {
 
     func stopsForTrip(tripID: String, fromSequence: Int = 0, toSequence: Int = Int.max) throws -> [StopArrival] {
         let sql = """
-            SELECT s.name, st.departure_time, st.stop_sequence, st.stop_headsign
+            SELECT s.name, st.stop_id, st.departure_time, st.stop_sequence, st.stop_headsign
             FROM stop_times st
             JOIN platforms p ON p.id = st.stop_id
             JOIN stations s ON s.id = p.station_id
@@ -455,9 +468,10 @@ actor CTDatabase {
         ) { statement in
             StopArrival(
                 stationName: self.columnText(statement, 0),
-                time: ServiceTime(gtfsString: self.columnText(statement, 1)) ?? ServiceTime(secondsSinceMidnight: 0),
-                stopSequence: Int(sqlite3_column_int(statement, 2)),
-                headsign: self.columnOptionalText(statement, 3)
+                stopID: self.columnText(statement, 1),
+                time: ServiceTime(gtfsString: self.columnText(statement, 2)) ?? ServiceTime(secondsSinceMidnight: 0),
+                stopSequence: Int(sqlite3_column_int(statement, 3)),
+                headsign: self.columnOptionalText(statement, 4)
             )
         }
     }

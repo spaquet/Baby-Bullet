@@ -14,17 +14,20 @@ Per-station page: today's remaining departures (same "from 40 min ago, centered 
 **Stop-by-stop trip detail** — *built*
 Tapping a departure or trip result shows every stop it makes (or, for a planned trip, every stop between the chosen origin and destination) with per-stop times, from GTFS `stop_times`.
 
+**Live train tracking** — *built*
+Each stop in the stop-by-stop sheet shows a live status pill — on time / delayed / early, or "Live data unavailable" — fetched directly from 511.org's real-time `StopMonitoring` API per stop, matched to the trip by GTFS trip ID. Works for upcoming and recently-departed trains alike, as long as 511 still has current data for that service day; 511's real-time feed has no history, so a train whose day has fully ended may show as unavailable rather than a fabricated status.
+
 **Settings** — *built*
 Home station picker, location-services toggle, notifications toggle (no notifications sent yet — see below). All persisted in the app's own SQLite `preferences` table.
 
-**Service alerts** — *placeholder*
-Alerts tab exists but is intentionally empty until our own live-status backend ships (CLAUDE.md: alerts are never fetched directly from 511.org). No timetable-side holiday banner is faked either — it's real `calendar_dates` data, see Home above.
+**Service alerts** — *built*
+Alerts tab fetches Caltrain's active service alerts live from 511.org's real-time GTFS-Realtime `servicealerts` feed (JSON) — header/description text per alert, pull-to-refresh, distinct "no alerts" vs "couldn't reach 511" states. No timetable-side holiday banner is faked either — it's real `calendar_dates` data, see Home above.
 
 **Timetable display (full schedule browse)** — *not built*
 Browsing a whole line's schedule independent of "today" / a specific trip search isn't implemented yet; Home and Station Detail only show the current service day.
 
 **Live Activity for a planned trip** — *not built*
-Dynamic Island + Lock Screen tracking of a chosen trip, degrading gracefully to a schedule-only countdown until our status backend exists.
+Dynamic Island + Lock Screen tracking of a chosen trip, backed by the same live 511 data as the stop-by-stop sheet's delay pill.
 
 ## Suggested additions
 
