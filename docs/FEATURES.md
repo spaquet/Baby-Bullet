@@ -45,3 +45,6 @@ Rough zone-based fare between two stations, computed from GTFS fare-zone data �
 
 **Station amenities (parking, ticket machines, restrooms, Uber/Lyft deep link)**
 Not in Caltrain's 511 GTFS/GTFS+ feed at all — checked the `stopplaces` endpoint too, which returns `"unknown"` for accessibility on nearly every platform, no better than GTFS's own field. Would need a different data source; not something to fake.
+
+**Remote timetable updates (no app-store release needed for schedule changes)**
+Spec'd, not built — see `docs/REMOTE_DATA_UPDATES.md`. App would periodically pull an updated `BabyBullet.sqlite` from a GitHub Release and hot-swap the timetable tables via the migration path `CTDatabase` already uses for bundled-DB upgrades, leaving `preferences` untouched. Schema changes still require an app update; this only covers data (new season's GTFS) refreshes.
