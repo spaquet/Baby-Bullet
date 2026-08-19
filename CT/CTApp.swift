@@ -9,8 +9,14 @@ import SwiftUI
 
 @main
 struct CTApp: App {
-    @State private var appModel = AppModel()
     @State private var realtimeService = RealtimeService()
+    @State private var appModel: AppModel
+
+    init() {
+        let realtimeService = RealtimeService()
+        _realtimeService = State(initialValue: realtimeService)
+        _appModel = State(initialValue: AppModel(realtimeService: realtimeService))
+    }
 
     var body: some Scene {
         WindowGroup {

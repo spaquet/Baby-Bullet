@@ -48,4 +48,14 @@ nonisolated struct ServiceTime: Sendable, Comparable, Hashable {
         if mins < 60 { return "\(mins) min" }
         return "\(mins / 60)h \(mins % 60)m"
     }
+
+    /// This service time as a real `Date`, on the America/Los_Angeles
+    /// calendar day starting at `referenceDate` (which may itself be after
+    /// midnight — GTFS times can exceed 24:00 for late-night trips).
+    func date(onServiceDayOf referenceDate: Date = .now) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .current
+        let startOfDay = calendar.startOfDay(for: referenceDate)
+        return startOfDay.addingTimeInterval(TimeInterval(secondsSinceMidnight))
+    }
 }

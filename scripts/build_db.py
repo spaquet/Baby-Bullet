@@ -108,7 +108,7 @@ CREATE TABLE preferences (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   home_station_id TEXT,
   location_enabled INTEGER NOT NULL DEFAULT 0,
-  notifications_enabled INTEGER NOT NULL DEFAULT 1,
+  notifications_enabled INTEGER NOT NULL DEFAULT 0,
   onboarding_complete INTEGER NOT NULL DEFAULT 0
 );
 INSERT INTO preferences (id) VALUES (1);
