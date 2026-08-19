@@ -5,17 +5,36 @@
 
 import SwiftUI
 
-/// How far into the past to still show a departure — a train can run late,
-/// so don't drop it from the list the instant its scheduled time passes.
-private let lateGraceMinutes = 40
+private enum PickerTarget: Identifiable, Equatable {
+    case origin
+    case destination
+    var id: Self { self }
+}
+
+private struct SearchKey: Equatable {
+    let originID: String?
+    let destinationID: String?
+    let dayType: DayType
+}
 
 struct HomeView: View {
     @Environment(AppModel.self) private var appModel
-    @State private var departures: [Departure] = []
+
+    @State private var originID: String?
+    @State private var destinationID: String?
+    @State private var dayType: DayType = .weekday
+    @State private var holidayServiceIDs: Set<String> = []
+    @State private var showHolidayTab = false
     @State private var isHolidayToday = false
     @State private var scheduleNote: String?
-    @State private var planTripPresented = false
-    @State private var openDeparture: Departure?
+    @State private var inactiveStationIDs: Set<String> = []
+    @State private var searched = false
+    @State private var results: [TripResult] = []
+    @State private var pickerTarget: PickerTarget?
+    @State private var openResult: TripResult?
+
+    private var originStation: Station? { appModel.stations.first { $0.id == originID } }
+    private var destinationStation: Station? { appModel.stations.first { $0.id == destinationID } }
 
     var body: some View {
         NavigationStack {
@@ -23,95 +42,26 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         if isHolidayToday {
-                            HolidayBanner().padding(.horizontal, 16).padding(.bottom, 12)
+                            HolidayBanner().padding(.horizontal, 16).padding(.top, 12)
                         }
 
-                        if let station = appModel.featuredStation {
-                            NavigationLink(value: station) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(appModel.isUsingNearestStation ? "NEAREST STATION" : "HOME STATION")
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundStyle(.secondary)
-                                        Text(station.name)
-                                            .font(.system(size: 22, weight: .bold))
-                                            .foregroundStyle(.primary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .padding(16)
-                                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 12)
+                        if !inactiveStationIDs.isEmpty {
+                            Text("\(inactiveStationIDs.count) station\(inactiveStationIDs.count == 1 ? "" : "s") don't run on the \(dayType.label.lowercased()) schedule — shown dimmed when picking a station.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 32)
+                                .padding(.top, 12)
                         }
 
-                        Button {
-                            planTripPresented = true
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Plan a Trip")
-                                        .font(.system(size: 17, weight: .bold))
-                                        .foregroundStyle(.white)
-                                    Text("Find trains between any two stations")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(.white.opacity(0.8))
-                                }
-                                Spacer()
-                                Image(systemName: "arrow.right.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
-                            .padding(16)
-                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 20))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
-
-                        HStack {
-                            Text("TODAY'S DEPARTURES")
-                                .font(.system(size: 13, weight: .semibold))
+                        if originID != nil, destinationID != nil, originID == destinationID {
+                            Text("Choose two different stations.")
+                                .font(.system(size: 15))
                                 .foregroundStyle(.secondary)
-                            Spacer()
+                                .padding(.top, 20)
+                        } else if searched {
+                            resultsList(proxy)
+                                .padding(.top, 20)
                         }
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 8)
-
-                        VStack(spacing: 0) {
-                            if departures.isEmpty {
-                                Text("No more scheduled departures today.")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(.secondary)
-                                    .padding(16)
-                            } else {
-                                ForEach(Array(departures.enumerated()), id: \.element.id) { index, departure in
-                                    let minutes = departure.departureTime.minutesFromNow(currentServiceTime())
-                                    Button {
-                                        openDeparture = departure
-                                    } label: {
-                                        DepartureRow(
-                                            trainNumber: departure.trainNumber, trainType: departure.trainType,
-                                            time: departure.departureTime, destination: departure.destination,
-                                            rideDurationMinutes: departure.rideDurationMinutes, isPast: minutes < 0
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .id(departure.id)
-                                    if index < departures.count - 1 {
-                                        Divider().padding(.leading, 16)
-                                    }
-                                }
-                            }
-                        }
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .padding(.horizontal, 16)
 
                         if let scheduleNote {
                             Text(scheduleNote)
@@ -122,26 +72,159 @@ struct HomeView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .padding(.top, 8)
                     .padding(.bottom, 24)
                 }
                 .background(Color(.systemGroupedBackground))
-                .navigationTitle("Baby Bullet")
-                .navigationDestination(for: Station.self) { station in
-                    StationDetailView(station: station)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        odCard
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+
+                        dayTypePicker
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                    }
+                    .background(Color(.systemGroupedBackground))
                 }
-                .sheet(isPresented: $planTripPresented) {
-                    PlanTripSheet()
+                .sheet(item: $pickerTarget) { target in
+                    StationPickerSheet(
+                        title: target == .origin ? "Departing From" : "Arriving At",
+                        stations: appModel.stations,
+                        selectedID: target == .origin ? originID : destinationID,
+                        onPick: { station in
+                            if target == .origin { originID = station.id } else { destinationID = station.id }
+                        },
+                        inactiveStationIDs: inactiveStationIDs
+                    )
                 }
-                .sheet(item: $openDeparture) { departure in
-                    StopsSheet(tripID: departure.tripID, trainNumber: departure.trainNumber, trainType: departure.trainType)
+                .sheet(item: $openResult) { result in
+                    StopsSheet(tripID: result.tripID, trainNumber: result.trainNumber, trainType: result.trainType, preloadedStops: result.stops)
                 }
-                .task(id: appModel.featuredStation?.id) {
-                    await load()
+                .task { await prepareDefaults() }
+                .task(id: dayType) { await updateInactiveStations() }
+                .task(id: SearchKey(originID: originID, destinationID: destinationID, dayType: dayType)) {
+                    await search()
                     centerOnNow(proxy)
                 }
             }
         }
+    }
+
+    private var odCard: some View {
+        VStack(spacing: 2) {
+            Button { pickerTarget = .origin } label: {
+                stationRow(label: "FROM", name: originStation?.name ?? "Choose a station", dotColor: Color.accentColor)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                swap(&originID, &destinationID)
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(Color(.systemGroupedBackground), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(.vertical, 2)
+
+            Button { pickerTarget = .destination } label: {
+                stationRow(label: "TO", name: destinationStation?.name ?? "Choose a station", dotColor: Color("BadgeExpress"))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func stationRow(label: String, name: String, dotColor: Color) -> some View {
+        HStack(spacing: 12) {
+            Circle().fill(dotColor.opacity(0.15)).frame(width: 22, height: 22)
+                .overlay(Circle().fill(dotColor).frame(width: 7, height: 7))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.tertiary)
+                Text(name).font(.system(size: 17, weight: .medium)).foregroundStyle(.primary)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    private var dayTypePicker: some View {
+        Picker("Schedule", selection: $dayType) {
+            ForEach(availableDayTypes, id: \.self) { type in
+                Text(type.label).tag(type)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var availableDayTypes: [DayType] {
+        showHolidayTab ? [.weekday, .weekend, .holiday] : [.weekday, .weekend]
+    }
+
+    private func resultsList(_ proxy: ScrollViewProxy) -> some View {
+        VStack(spacing: 0) {
+            if results.isEmpty {
+                Text("No trains found for this schedule.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .padding(16)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+                    .padding(.horizontal, 16)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                        let isPast = result.departureTime.minutesFromNow(currentServiceTime()) < 0
+                        Button {
+                            openResult = result
+                        } label: {
+                            HStack(spacing: 12) {
+                                TrainBadge(trainNumber: result.trainNumber, trainType: result.trainType)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(result.departureTime.displayString) – \(result.arrivalTime.displayString)")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(.primary)
+                                    Text("\(result.stops.count) stops")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Spacer()
+                                Text(result.durationLabel)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 13)
+                            .padding(.horizontal, 16)
+                            .contentShape(Rectangle())
+                            .opacity(isPast ? 0.5 : 1)
+                            .background(isPast ? Color(.tertiarySystemGroupedBackground) : Color.clear)
+                        }
+                        .buttonStyle(.plain)
+                        .id(result.id)
+                        if index < results.count - 1 {
+                            Divider().padding(.leading, 16)
+                        }
+                    }
+                }
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func swap(_ a: inout String?, _ b: inout String?) {
+        let temp = a
+        a = b
+        b = temp
     }
 
     private func currentServiceTime() -> ServiceTime {
@@ -153,31 +236,50 @@ struct HomeView: View {
         return ServiceTime(secondsSinceMidnight: seconds)
     }
 
-    private func load() async {
-        guard let station = appModel.featuredStation else { return }
-        do {
-            let active = try await appModel.db.activeServices(on: Date())
-            isHolidayToday = active.isHoliday
-            let now = currentServiceTime()
-            let windowStart = ServiceTime(secondsSinceMidnight: max(0, now.secondsSinceMidnight - lateGraceMinutes * 60))
-            departures = try await appModel.db.departures(
-                fromStationID: station.id, serviceIDs: active.serviceIDs, after: windowStart
-            )
-            if let nonHolidayID = active.serviceIDs.subtracting(active.holidayOnlyServiceIDs).first {
-                scheduleNote = try await appModel.db.calendarDescription(for: nonHolidayID)
-            } else {
-                scheduleNote = nil
-            }
-        } catch {
-            departures = []
+    private func prepareDefaults() async {
+        if originID == nil { originID = appModel.featuredStation?.id ?? appModel.homeStationID }
+        if destinationID == nil {
+            destinationID = appModel.stations.first { $0.id != originID }?.id
         }
+        if let active = try? await appModel.db.activeServices(on: Date()) {
+            isHolidayToday = active.isHoliday
+            holidayServiceIDs = active.holidayOnlyServiceIDs
+            showHolidayTab = active.isHoliday
+            if let nonHolidayID = active.serviceIDs.subtracting(active.holidayOnlyServiceIDs).first {
+                scheduleNote = try? await appModel.db.calendarDescription(for: nonHolidayID)
+            }
+        }
+    }
+
+    private func serviceIDs(for dayType: DayType) async -> Set<String> {
+        switch dayType {
+        case .weekday: return (try? await appModel.db.weekdayServiceIDs()) ?? []
+        case .weekend: return (try? await appModel.db.weekendServiceIDs()) ?? []
+        case .holiday: return holidayServiceIDs
+        }
+    }
+
+    private func updateInactiveStations() async {
+        let served = (try? await appModel.db.servedStationIDs(serviceIDs: await serviceIDs(for: dayType))) ?? []
+        inactiveStationIDs = Set(appModel.stations.map(\.id)).subtracting(served)
+    }
+
+    private func search() async {
+        guard let originID, let destinationID, originID != destinationID else {
+            searched = false
+            results = []
+            return
+        }
+        let serviceIDs = await serviceIDs(for: dayType)
+        results = (try? await appModel.db.tripResults(originStationID: originID, destinationStationID: destinationID, serviceIDs: serviceIDs)) ?? []
+        searched = true
     }
 
     /// Scrolls so the next upcoming (or just-departed) train sits mid-screen,
     /// instead of opening at the top of the whole day's list.
     private func centerOnNow(_ proxy: ScrollViewProxy) {
         let now = currentServiceTime()
-        guard let target = departures.first(where: { $0.departureTime >= now }) ?? departures.last else { return }
+        guard let target = results.first(where: { $0.departureTime >= now }) ?? results.last else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             withAnimation(nil) {
                 proxy.scrollTo(target.id, anchor: .center)
