@@ -32,6 +32,7 @@ actor CTDatabase {
         } else if try Self.userVersion(at: bundledURL) > (try Self.userVersion(at: destURL)) {
             try Self.migrateTimetableTables(from: bundledURL, into: destURL)
         }
+        try Self.applyPreferenceMigrations(to: destURL)
 
         var handle: OpaquePointer?
         guard sqlite3_open(destURL.path, &handle) == SQLITE_OK, let handle else {
@@ -59,6 +60,34 @@ actor CTDatabase {
         sqlite3_prepare_v2(handle, "PRAGMA user_version;", -1, &statement, nil)
         sqlite3_step(statement)
         return Int(sqlite3_column_int(statement, 0))
+    }
+
+    private static func applyPreferenceMigrations(to url: URL) throws {
+        var handle: OpaquePointer?
+        guard sqlite3_open(url.path, &handle) == SQLITE_OK, let handle else {
+            throw DatabaseError.openFailed
+        }
+        defer { sqlite3_close(handle) }
+
+        let migration = "002_work_station"
+        guard let migrationURL = Bundle.main.url(forResource: migration, withExtension: "sql"),
+              let sql = try? String(contentsOf: migrationURL, encoding: .utf8)
+        else { throw DatabaseError.migrationFailed("Missing \(migration) migration") }
+
+        sqlite3_exec(handle, "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY);", nil, nil, nil)
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        sqlite3_prepare_v2(handle, "SELECT 1 FROM schema_migrations WHERE name = ?;", -1, &statement, nil)
+        sqlite3_bind_text(statement, 1, migration, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+        guard sqlite3_step(statement) != SQLITE_ROW else { return }
+
+        var error: UnsafeMutablePointer<CChar>?
+        guard sqlite3_exec(handle, sql, nil, nil, &error) == SQLITE_OK else {
+            let message = error.map { String(cString: $0) } ?? "Unknown migration error"
+            sqlite3_free(error)
+            throw DatabaseError.migrationFailed(message)
+        }
+        sqlite3_exec(handle, "INSERT INTO schema_migrations (name) VALUES ('\(migration)');", nil, nil, nil)
     }
 
     /// Replaces the timetable tables in `destURL` with the ones from
@@ -216,13 +245,14 @@ actor CTDatabase {
 
     func preferences() throws -> Preferences {
         let rows: [Preferences] = try query(
-            "SELECT home_station_id, location_enabled, notifications_enabled, onboarding_complete FROM preferences WHERE id = 1;"
+            "SELECT home_station_id, work_station_id, location_enabled, notifications_enabled, onboarding_complete FROM preferences WHERE id = 1;"
         ) { statement in
             Preferences(
                 homeStationID: self.columnOptionalText(statement, 0),
-                locationEnabled: sqlite3_column_int(statement, 1) != 0,
-                notificationsEnabled: sqlite3_column_int(statement, 2) != 0,
-                onboardingComplete: sqlite3_column_int(statement, 3) != 0
+                workStationID: self.columnOptionalText(statement, 1),
+                locationEnabled: sqlite3_column_int(statement, 2) != 0,
+                notificationsEnabled: sqlite3_column_int(statement, 3) != 0,
+                onboardingComplete: sqlite3_column_int(statement, 4) != 0
             )
         }
         guard let prefs = rows.first else { throw DatabaseError.notOpen }
@@ -231,6 +261,12 @@ actor CTDatabase {
 
     func setHomeStation(_ stationID: String) throws {
         try execute("UPDATE preferences SET home_station_id = ? WHERE id = 1;") { self.bindText($0, 1, stationID) }
+    }
+
+    func setWorkStation(_ stationID: String?) throws {
+        try execute("UPDATE preferences SET work_station_id = ? WHERE id = 1;") {
+            if let stationID { self.bindText($0, 1, stationID) } else { sqlite3_bind_null($0, 1) }
+        }
     }
 
     func setLocationEnabled(_ enabled: Bool) throws {

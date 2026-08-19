@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var appModel
     @State private var homeStationPickerPresented = false
+    @State private var workStationPickerPresented = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,24 @@ struct SettingsView: View {
                         }
                     }
                     .foregroundStyle(.primary)
+
+                    Button {
+                        workStationPickerPresented = true
+                    } label: {
+                        HStack {
+                            Label("Work Station", systemImage: "briefcase")
+                            Spacer()
+                            Text(appModel.workStation?.name ?? "Not Set")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+
+                    if appModel.workStation != nil {
+                        Button("Clear Work Station", role: .destructive) {
+                            appModel.setWorkStation(nil)
+                        }
+                    }
 
                     Toggle(isOn: Binding(
                         get: { appModel.locationEnabled },
@@ -55,6 +74,11 @@ struct SettingsView: View {
             .sheet(isPresented: $homeStationPickerPresented) {
                 StationPickerSheet(title: "Home Station", stations: appModel.stations, selectedID: appModel.homeStationID) { station in
                     appModel.setHomeStation(station)
+                }
+            }
+            .sheet(isPresented: $workStationPickerPresented) {
+                StationPickerSheet(title: "Work Station", stations: appModel.stations, selectedID: appModel.workStationID) { station in
+                    appModel.setWorkStation(station)
                 }
             }
         }
