@@ -1,4 +1,4 @@
-# CT — Caltrain Companion
+# Baby Bullet
 
 iOS app (Swift 6, iOS 26+, SwiftUI) to help riders plan Caltrain trips: timetables, stations, service status.
 

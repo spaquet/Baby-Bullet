@@ -1,4 +1,4 @@
-# CT — Caltrain Companion
+# Baby Bullet (repo/Xcode project: CT)
 
 iOS app, plan Caltrain rides. Swift 6, iOS 26+, SwiftUI, strict concurrency on.
 
