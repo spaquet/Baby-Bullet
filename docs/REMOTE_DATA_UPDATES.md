@@ -6,8 +6,13 @@ updated `BabyBullet.sqlite` to a GitHub Release and having the app pull it
 down periodically. Schema changes still require an app update — this only
 covers *data* refreshes against the current schema.
 
-Not built yet. This document specs it; see `docs/FEATURES.md` for build
-status of everything else.
+**Built.** Landed in #2 (`RemoteDataUpdater.swift`, `CTDatabase`
+`applyRemoteTimetable`/`dataVersion`, `004_data_version.sql`,
+`scripts/publish_release.py`). Manifest + DB are published to the
+`latest` release tag on `spaquet/Baby-Bullet`
+(`https://github.com/spaquet/Baby-Bullet/releases/latest/download/latest.json`),
+public, no auth. See `docs/FEATURES.md` for build status of everything
+else.
 
 ## Why this works with the current design
 
@@ -58,13 +63,13 @@ Release, e.g. `latest.json`:
 {
   "schema_version": 1,
   "data_version": 7,
-  "sqlite_url": "https://github.com/<org>/CT/releases/download/data-v7/BabyBullet.sqlite",
+  "sqlite_url": "https://github.com/spaquet/Baby-Bullet/releases/download/latest/BabyBullet.sqlite",
   "sha256": "…",
   "published_at": "2026-08-19T00:00:00Z"
 }
 ```
 
-Fetched via the raw asset URL (`https://github.com/<org>/CT/releases/latest/download/latest.json`
+Fetched via the raw asset URL (`https://github.com/spaquet/Baby-Bullet/releases/latest/download/latest.json`
 or a versioned tag) — a plain GET, no GitHub API auth needed, no rate-limit
 concerns for a single small file per app-launch-that-checks.
 
@@ -78,7 +83,7 @@ networking is a distinct concern from storage:
 actor RemoteDataUpdater {
     static let shared = RemoteDataUpdater()
 
-    private static let manifestURL = URL(string: "https://github.com/<org>/CT/releases/latest/download/latest.json")!
+    private static let manifestURL = URL(string: "https://github.com/spaquet/Baby-Bullet/releases/latest/download/latest.json")!
     private static let checkInterval: TimeInterval = 86400 // 1 day
 
     /// Call once at launch, after CTDatabase.open(). Fire-and-forget from

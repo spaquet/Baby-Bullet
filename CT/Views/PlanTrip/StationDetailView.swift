@@ -61,8 +61,13 @@ struct StationDetailView: View {
     }
 
     private var uberURL: URL {
-        let location = isRideDestination ? "dropoff" : "pickup"
-        return URL(string: "https://m.uber.com/ul/?action=setPickup&\(location)[latitude]=\(station.latitude)&\(location)[longitude]=\(station.longitude)")!
+        let locationJSON = "{\"latitude\":\(station.latitude),\"longitude\":\(station.longitude),\"addressLine1\":\"\(station.name)\"}"
+        var components = URLComponents(string: "https://m.uber.com/looking")!
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: Secrets.uberClientID),
+            URLQueryItem(name: isRideDestination ? "drop[0]" : "pickup", value: locationJSON),
+        ]
+        return components.url!
     }
 
     private var accessibilityMessage: String {
