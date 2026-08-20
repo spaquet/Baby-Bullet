@@ -6,14 +6,11 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000002 /* BabyBulletWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* BabyBulletWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
-		A10000000000000000000001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 76761C9530358CDA00637491 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A10000000000000000000003 /* BabyBulletWidget */;
-			remoteInfo = BabyBulletWidget;
-		};
 		76761CAB30358CDB00637491 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 76761C9530358CDA00637491 /* Project object */;
@@ -28,21 +25,24 @@
 			remoteGlobalIDString = 76761C9C30358CDA00637491;
 			remoteInfo = CT;
 		};
+		A10000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 76761C9530358CDA00637491 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000003;
+			remoteInfo = BabyBulletWidget;
+		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXBuildFile section */
-		A10000000000000000000002 /* BabyBulletWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* BabyBulletWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		A10000000000000000000005 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (A10000000000000000000002 /* BabyBulletWidget.appex in Embed Foundation Extensions */, );
+			dstSubfolder = PlugIns;
+			files = (
+				A10000000000000000000002 /* BabyBulletWidget.appex in Embed Foundation Extensions */,
+			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -107,9 +107,8 @@
 		};
 		A10000000000000000000007 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = ();
-			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+			);
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -161,21 +160,6 @@
 			productReference = 76761C9D30358CDA00637491 /* CT.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A10000000000000000000003 /* BabyBulletWidget */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A10000000000000000000008 /* Build configuration list for PBXNativeTarget "BabyBulletWidget" */;
-			buildPhases = (
-				A10000000000000000000009 /* Sources */,
-				A10000000000000000000007 /* Frameworks */,
-				A10000000000000000000010 /* Resources */,
-			);
-			buildRules = ();
-			fileSystemSynchronizedGroups = (A10000000000000000000006 /* BabyBulletWidget */, );
-			name = BabyBulletWidget;
-			productName = BabyBulletWidget;
-			productReference = A10000000000000000000004 /* BabyBulletWidget.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		76761CA930358CDB00637491 /* CTTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 76761CBF30358CDB00637491 /* Build configuration list for PBXNativeTarget "CTTests" */;
@@ -217,6 +201,24 @@
 			productName = CTUITests;
 			productReference = 76761CB430358CDB00637491 /* CTUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		A10000000000000000000003 /* BabyBulletWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000008 /* Build configuration list for PBXNativeTarget "BabyBulletWidget" */;
+			buildPhases = (
+				A10000000000000000000009 /* Sources */,
+				A10000000000000000000007 /* Frameworks */,
+				A10000000000000000000010 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000006 /* BabyBulletWidget */,
+			);
+			name = BabyBulletWidget;
+			productName = BabyBulletWidget;
+			productReference = A10000000000000000000004 /* BabyBulletWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -284,9 +286,8 @@
 		};
 		A10000000000000000000010 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = ();
-			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+			);
 		};
 /* End PBXResourcesBuildPhase section */
 
@@ -308,9 +309,8 @@
 		};
 		A10000000000000000000009 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = ();
-			runOnlyForDeploymentPostprocessing = 0;
+			files = (
+			);
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -528,48 +528,6 @@
 			};
 			name = Release;
 		};
-		A10000000000000000000012 /* Debug configuration for PBXNativeTarget "BabyBulletWidget" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = BabyBulletWidget/BabyBulletWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2048;
-				DEVELOPMENT_TEAM = 342L82G5GB;
-				INFOPLIST_FILE = BabyBulletWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stephanepaquet.CT.BabyBulletWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		A10000000000000000000013 /* Release configuration for PBXNativeTarget "BabyBulletWidget" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = BabyBulletWidget/BabyBulletWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2048;
-				DEVELOPMENT_TEAM = 342L82G5GB;
-				INFOPLIST_FILE = BabyBulletWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stephanepaquet.CT.BabyBulletWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		76761CC030358CDB00637491 /* Debug configuration for PBXNativeTarget "CTTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -654,6 +612,48 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000012 /* Debug configuration for PBXNativeTarget "BabyBulletWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BabyBulletWidget/BabyBulletWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2048;
+				DEVELOPMENT_TEAM = 342L82G5GB;
+				INFOPLIST_FILE = BabyBulletWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stephanepaquet.CT.BabyBulletWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10000000000000000000013 /* Release configuration for PBXNativeTarget "BabyBulletWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BabyBulletWidget/BabyBulletWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2048;
+				DEVELOPMENT_TEAM = 342L82G5GB;
+				INFOPLIST_FILE = BabyBulletWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stephanepaquet.CT.BabyBulletWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -695,7 +695,6 @@
 				A10000000000000000000012 /* Debug configuration for PBXNativeTarget "BabyBulletWidget" */,
 				A10000000000000000000013 /* Release configuration for PBXNativeTarget "BabyBulletWidget" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
