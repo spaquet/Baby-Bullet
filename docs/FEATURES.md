@@ -18,7 +18,7 @@ Tapping a departure or trip result shows every stop it makes (or, for a planned 
 Each stop in the stop-by-stop sheet shows a live status pill — on time / delayed / early, or "Live data unavailable" — fetched directly from 511.org's real-time `StopMonitoring` API per stop, matched to the trip by GTFS trip ID. Works for upcoming and recently-departed trains alike, as long as 511 still has current data for that service day; 511's real-time feed has no history, so a train whose day has fully ended may show as unavailable rather than a fabricated status.
 
 **Settings** — *built*
-Home and optional Work station pickers, location-services toggle, notifications toggle (no notifications sent yet — see below). All persisted in the app's own SQLite `preferences` table.
+Home and optional Work station pickers, location-services toggle, notifications toggle (wired to `UNUserNotificationCenter` authorization). All persisted in the app's own SQLite `preferences` table.
 
 **Service alerts** — *built*
 Alerts tab fetches Caltrain's active service alerts live from 511.org's real-time GTFS-Realtime `servicealerts` feed (JSON) — header/description text per alert, pull-to-refresh, distinct "no alerts" vs "couldn't reach 511" states. No timetable-side holiday banner is faked either — it's real `calendar_dates` data, see Home above.
@@ -26,13 +26,10 @@ Alerts tab fetches Caltrain's active service alerts live from 511.org's real-tim
 **Widgets** — *built*
 Home Screen and Lock Screen widget for the next two departures. With a Work Station configured, it shows Home → Work trains and has an in-widget control to reverse to Work → Home.
 
-**Live Activity for a planned trip** — *not built*
-Dynamic Island + Lock Screen tracking of a chosen trip, backed by the same live 511 data as the stop-by-stop sheet's delay pill.
+**Tracked trip: notifications + Live Activity** — *built*
+Bell button on a Routes tab result tracks a single trip through an upcoming/boarded/ended state machine (`TrackedTripCoordinator`, polling `RealtimeService`). Once tracked, a Live Activity (Lock Screen + Dynamic Island, `BabyBulletWidget`) reflects live delay data, and — if notifications are authorized — a leave-now reminder plus delay alerts are scheduled (`TripNotificationScheduler`).
 
 ## Suggested additions
-
-**Notifications for a tracked trip**
-Local/push notification ahead of departure ("Leave now to catch the 5:12"), and delay alerts once live status exists. The Settings toggle for this exists already; nothing triggers it yet.
 
 **Shortcuts**
 App Intents/Siri Shortcut ("When's my next train?").

@@ -2,6 +2,31 @@
 
 iOS app (Swift 6, iOS 26+, SwiftUI) to help riders plan Caltrain trips: timetables, stations, service status.
 
+## Features
+
+- **Home / Routes** — today's remaining departures from your home (or nearest) station, holiday-schedule banner when it applies
+- **Trip planning** — origin/destination station picker across Weekday/Weekend/Holiday schedules
+- **Station detail** — per-station departures, accessibility notes, one-tap Apple Maps directions
+- **Stop-by-stop trip detail** — every stop a train/trip makes, with per-stop times
+- **Live train tracking** — on-time/delayed/early status per stop from 511's real-time feed
+- **Service alerts** — merged from 511 and Caltrain's own PADS feed, deduped
+- **Tracked trip: notifications + Live Activity** — track a trip, get a leave-now reminder, delay alerts, and a Lock Screen/Dynamic Island Live Activity
+- **Widgets** — Home Screen and Lock Screen widgets for next departures, with Home↔Work reverse
+- **Settings** — Home/Work stations, location toggle, notifications toggle, all synced to a local SQLite store
+- **Remote data updates** — schedule/holiday data refreshes without an App Store release (see [`docs/REMOTE_DATA_UPDATES.md`](docs/REMOTE_DATA_UPDATES.md))
+
+Full detail and what's not built yet: [`docs/FEATURES.md`](docs/FEATURES.md).
+
+<p align="center">
+  <img src="screenshots/routes-light.webp" width="200" alt="Routes tab, light mode">
+  <img src="screenshots/routes-dark.webp" width="200" alt="Routes tab, dark mode">
+  <img src="screenshots/station-picker.webp" width="200" alt="Origin/destination station picker">
+  <br>
+  <img src="screenshots/station-detail.webp" width="200" alt="Station detail">
+  <img src="screenshots/service-alerts.webp" width="200" alt="Service alerts">
+  <img src="screenshots/settings.webp" width="200" alt="Settings">
+</p>
+
 ## 511 Open Data
 
 Timetable, holiday, and stop data comes from the [511.org Open Data](https://511.org/open-data) API.
