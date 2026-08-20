@@ -8,6 +8,6 @@ nonisolated struct ServiceAlert: Identifiable, Sendable {
     let id: String
     let headerText: String
     let descriptionText: String?
-    let effect: String?
-    let cause: String?
+    let effect: Int?
+    let cause: Int?
 }

@@ -13,6 +13,7 @@ import CoreLocation
 @MainActor
 final class RealtimeService {
     private let client = FiveElevenRealtimeClient.shared
+    private let padsClient = PADSAlertClient.shared
 
     private var vehicleSnapshot: (activities: [MonitoredVehicleActivity], fetchedAt: Date)?
     private let cacheTTL: TimeInterval = 120
@@ -73,20 +74,60 @@ final class RealtimeService {
             .distance(from: CLLocation(latitude: platform.latitude, longitude: platform.longitude)) <= 150
     }
 
-    /// Currently active alerts. Throws only on a genuine fetch failure — an
-    /// empty result means 511 reported zero active alerts, not an error.
+    /// Currently active alerts, merged from 511's real-time feed and
+    /// caltrain.com's own PADS feed (see `PADSAlertDTO.swift`) — the two are
+    /// independently published and neither is a superset of the other.
+    /// Throws only if both sources fail; an empty result means both
+    /// genuinely reported zero active alerts, not an error.
     func alerts() async throws -> [ServiceAlert] {
+        async let fiveElevenAlerts: [ServiceAlert]? = try? fiveElevenAlerts()
+        async let padsAlerts: [ServiceAlert]? = try? padsAlerts()
+        let (fiveEleven, pads) = await (fiveElevenAlerts, padsAlerts)
+        guard fiveEleven != nil || pads != nil else { throw RealtimeError.allSourcesFailed }
+        return Self.merge(fiveEleven ?? [], pads ?? [])
+    }
+
+    private func fiveElevenAlerts() async throws -> [ServiceAlert] {
         let response = try await client.serviceAlerts()
         return (response.Entities ?? []).compactMap { entity in
-            guard let alert = entity.alert, let header = alert.headerText?.text else { return nil }
+            guard let alert = entity.Alert, let header = alert.HeaderText?.text else { return nil }
             return ServiceAlert(
-                id: entity.id ?? header,
+                id: entity.Id ?? header,
                 headerText: header,
-                descriptionText: alert.descriptionText?.text,
+                descriptionText: alert.DescriptionText?.text,
                 effect: alert.effect,
                 cause: alert.cause
             )
         }
+    }
+
+    private func padsAlerts() async throws -> [ServiceAlert] {
+        let entities = try await padsClient.alerts()
+        return entities.compactMap { entity in
+            let header = entity.Alert.HeaderText?.text
+            let description = entity.Alert.DescriptionText?.text
+            guard let headline = header ?? description else { return nil }
+            return ServiceAlert(
+                id: "PADS_\(entity.Id)",
+                headerText: headline,
+                descriptionText: header != nil ? description : nil,
+                effect: entity.Alert.effect,
+                cause: entity.Alert.cause
+            )
+        }
+    }
+
+    /// 511 and PADS occasionally carry the same alert; drop exact
+    /// header+description duplicates rather than showing it twice.
+    private static func merge(_ fiveEleven: [ServiceAlert], _ pads: [ServiceAlert]) -> [ServiceAlert] {
+        var seen: Set<String> = []
+        var result: [ServiceAlert] = []
+        for alert in fiveEleven + pads {
+            let key = (alert.headerText + (alert.descriptionText ?? "")).lowercased()
+            guard seen.insert(key).inserted else { continue }
+            result.append(alert)
+        }
+        return result
     }
 
     private static func date(_ string: String?) -> Date? {

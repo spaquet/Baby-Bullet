@@ -74,39 +74,45 @@ nonisolated struct MonitoredVehicleJourney: Decodable, Sendable {
 }
 
 /// `GET /transit/servicealerts` — GTFS-Realtime FeedMessage, JSON-serialized.
-/// `Entities` was empty in every live sample pulled so far (no active alert
-/// to model against), so `Alert`'s fields are all optional and a bad entity
-/// is dropped rather than failing the whole decode — see
-/// `FiveElevenRealtimeClient.decode`.
+/// 511 capitalizes this feed's keys the same as the SIRI endpoints
+/// (`Entities`, `Alert`, `HeaderText`, `Translations`, `Text`...) rather
+/// than the lowerCamelCase/snake_case a generic protobuf-JSON mapping of
+/// GTFS-Realtime would suggest — confirmed against a live response with an
+/// active alert. `cause`/`effect`/`severity_level` are the exceptions,
+/// staying lowercase (GTFS-RT enum ints). A bad entity is dropped rather
+/// than failing the whole decode — see `FiveElevenRealtimeClient.decode`.
 nonisolated struct ServiceAlertsResponse: Decodable, Sendable {
     struct Header: Decodable, Sendable {
         let GtfsRealtimeVersion: String?
         let Timestamp: Int?
     }
     struct Entity: Decodable, Sendable {
-        let id: String?
-        let alert: Alert?
+        let Id: String?
+        let Alert: Alert?
     }
     struct Alert: Decodable, Sendable {
         struct TranslatedString: Decodable, Sendable {
             struct Translation: Decodable, Sendable {
-                let text: String?
-                let language: String?
+                let Text: String?
+                let Language: String?
             }
-            let translation: [Translation]?
+            let Translations: [Translation]?
 
-            var text: String? { translation?.first?.text }
+            var text: String? {
+                let value = Translations?.first { $0.Language == "en" }?.Text ?? Translations?.first?.Text
+                return value?.isEmpty == false ? value : nil
+            }
         }
         struct ActivePeriod: Decodable, Sendable {
-            let start: Int?
-            let end: Int?
+            let Start: Int?
+            let End: Int?
         }
-        let activePeriod: [ActivePeriod]?
-        let cause: String?
-        let effect: String?
-        let headerText: TranslatedString?
-        let descriptionText: TranslatedString?
-        let url: TranslatedString?
+        let ActivePeriods: [ActivePeriod]?
+        let cause: Int?
+        let effect: Int?
+        let HeaderText: TranslatedString?
+        let DescriptionText: TranslatedString?
+        let Url: TranslatedString?
     }
     let Header: Header?
     let Entities: [Entity]?
